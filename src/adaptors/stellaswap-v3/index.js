@@ -4,14 +4,14 @@ const BigNumber = require('bignumber.js');
 const utils = require('../utils');
 
 const urlMoonbeam = 'https://api.studio.thegraph.com/proxy/78672/pulsar/v0.0.1/';
-const urlBlocksSubgraph = 'https://api.thegraph.com/subgraphs/name/stellaswap/pulsar-blocks';
-const urlConliqSubgraph = 'https://api.thegraph.com/subgraphs/name/stellaswap/pulsar';
-const urlFarmingSubgraph = 'https://api.thegraph.com/subgraphs/name/stellaswap/pulsar-farming';
+const urlBlocksSubgraph = 'https://api.studio.thegraph.com/proxy/78672/pulsar-blocks/v0.0.1/';
+const urlConliqSubgraph = 'https://api.studio.thegraph.com/proxy/78672/pulsar/v0.0.1/';
+const urlFarmingSubgraph = 'https://api.studio.thegraph.com/proxy/78672/pulsar-farming/v0.0.1/';
 
 const queryPools = gql`
   {
     pools(first: 1000, orderBy: totalValueLockedUSD, orderDirection: desc) {
-      id
+      id  
       volumeUSD
       token0 {
         id
