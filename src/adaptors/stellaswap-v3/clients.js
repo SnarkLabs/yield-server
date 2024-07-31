@@ -1,0 +1,5 @@
+const KEY = "89ee4bac17c0a4b5c8f359d9b50b3abe"
+const API = `https://gateway-arbitrum.network.thegraph.com/api/${KEY}`
+exports.pulsarBlocks = `${API}/subgraphs/id/HaSkCZY1wcFLLaQE4xHksnHH9VPiLm6i63xAc1kze4Jp`;
+exports.pulsar = `${API}/subgraphs/id/85R1ZetugVABa7BiqKFqE2MewRuJ8b2SaLHffyTHDAht`;
+exports.pulsarFarming = `${API}/subgraphs/id/8ym6MbzW8UgYWoyCRkZrWV44YHmgS4ZxUmhv8kyNNSsn`;
