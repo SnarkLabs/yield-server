@@ -9,6 +9,12 @@ exports.queryPools = gql
     `{
         pools(first: ${_50}, orderBy: totalValueLockedUSD, orderDirection: desc) {
         id
+        poolDayData(first: 1000, orderBy: date, orderDirection: desc) {
+            tvlUSD
+            volumeUSD
+            untrackedVolumeUSD
+            date
+        }
         volumeUSD
         token0 {
             id

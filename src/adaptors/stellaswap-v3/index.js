@@ -155,7 +155,7 @@ const topLvl = async (chainString, timestamp, url) => {
   }
 
   data = data.map((item) => {
-    const tvl = item.totalValueLockedUSD
+    const tvl = item.poolDayData[0]?.tvlUSD || 0;
     if (tvl > 30000) {
       const apr = poolsAPR[item.id];
       const apy = (Math.pow(1 + apr.dividedBy(365).toNumber(), 365) - 1) * 100;
