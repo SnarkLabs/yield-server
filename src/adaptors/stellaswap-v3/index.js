@@ -6,76 +6,10 @@ const { pulsar } = require('./clients');
 const { queryPools, queryPrior } = require('./queries');
 const { updateFarmsRewardsApr, updatePoolsApr } = require('./offchain-service');
 const {
-    getPositionsInEternalFarming,
     getPreviousBlockNumber,
-    getTokenInfoByAddress,
-    getEternalFarmingInfo,
     getPositionsOfPool,
-    getPositionsById,
     getAmounts,
 } = require('./utils');
-//     console.log('Updating Farms APR');
-//     const eternalFarmings = await getEternalFarmingInfo();
-
-//     const eternalObj = {
-//       farmPools: {},
-//       farms: {},
-//       updatedAt: 0,
-//     };
-
-//     for (const farming of eternalFarmings) {
-//       const tokenIds = await getPositionsInEternalFarming(farming.id);
-//       const token0 = (await getTokenInfoByAddress(farming.rewardToken))[0];
-//       const token1 = (await getTokenInfoByAddress(farming.bonusRewardToken))[0];
-//       let totalNativeAmount = 0.0;
-//       const positions = await getPositionsById(tokenIds);
-//       for (const position of positions) {
-//         const { amount0, amount1 } = getAmounts(
-//           new BigNumber(position.liquidity),
-//           new BigNumber(position.tickLower.tickIdx),
-//           new BigNumber(position.tickUpper.tickIdx),
-//           new BigNumber(position.pool.tick),
-//         );
-//         totalNativeAmount += (amount0 * new BigNumber(position.pool.token0.derivedMatic)) / new BigNumber(10).pow(position.pool.token0.decimals);
-//         totalNativeAmount += (amount1 * new BigNumber(position.pool.token1.derivedMatic)) / new BigNumber(10).pow(position.pool.token1.decimals);
-//       }
-
-//       const token0RewardRate = new BigNumber(farming.rewardRate);
-//       const token0Matic = new BigNumber(token0.derivedMatic);
-//       const token0Decimals = new BigNumber(10).pow(token0.decimals);
-//       const reward0PerSecond = token0RewardRate.times(token0Matic).dividedBy(token0Decimals);
-//       let totalReward = reward0PerSecond;
-//       let reward1PerSecond = 0;
-//       if (token1?.derivedMatic) {
-//         const token1RewardRate = new BigNumber(farming.bonusRewardRate);
-//         const token1Matic = new BigNumber(token1.derivedMatic);
-//         const token1Decimals = new BigNumber(10).pow(token1.decimals);
-//         reward1PerSecond = token1RewardRate.times(token1Matic).dividedBy(token1Decimals);
-//         totalReward = totalReward.plus(reward1PerSecond);
-//       }
-
-//       let apr = new BigNumber(0);
-//       let rewardTokenApr = new BigNumber(0);
-//       let bonusTokenApr = new BigNumber(0);
-//       if (totalNativeAmount > 0) {
-//         apr = totalReward.dividedBy(new BigNumber(totalNativeAmount)).times(86400 * 365 * 100);
-//         rewardTokenApr = reward0PerSecond.dividedBy(new BigNumber(totalNativeAmount)).times(86400 * 365 * 100);
-//         bonusTokenApr = reward1PerSecond !== 0 ? reward1PerSecond.dividedBy(new BigNumber(totalNativeAmount)).times(86400 * 365 * 100) : new BigNumber(0);
-//       }
-//       eternalObj.farms[farming.id] = apr.toString();
-//       eternalObj.farmPools[farming.pool] = {
-//         farmindId: farming.id,
-//         lastApr: apr.toString(),
-//         rewardTokenApr: rewardTokenApr.toString(),
-//         rewardToken: farming.rewardToken,
-//         bonusTokenApr: bonusTokenApr.toString(),
-//         bonusToken: farming.bonusRewardToken,
-//       };
-//     }
-
-//     eternalObj.updatedAt = (Date.now() / 1000).toFixed(0);
-//     return eternalObj;
-//   };
 
 const topLvl = async (chainString, timestamp, url) => {
     const balanceCalls = [];
@@ -150,6 +84,9 @@ const topLvl = async (chainString, timestamp, url) => {
     for (const pool of data) {
         const apr = poolsBaseAPR[pool.id] ? new BigNumber(poolsBaseAPR[pool.id]) : new BigNumber(0);
         poolsAPR[pool.id] = apr;
+
+        const rewardTokens = apr.isNaN() || apr.eq(0) ? [] : [pool.token0.id, pool.token1.id];
+        poolsRewardTokens[pool.id] = rewardTokens; // Store reward tokens for each pool
     }
 
     data = data.map((p) => {
@@ -157,6 +94,7 @@ const topLvl = async (chainString, timestamp, url) => {
         if (tvl > 30000) {
             const baseAPR = poolsAPR[p.id] ? poolsAPR[p.id].toNumber() : 0;
             const rewardsAPR = poolsFarmApr.pools[p.id]?.apr.toNumber() || 0; // Set to 0 if undefined
+            const rewardTokens = poolsRewardTokens[p.id]; // Retrieve reward tokens for each pool
 
 
             // console.log('apr', baseAPR);
@@ -170,6 +108,7 @@ const topLvl = async (chainString, timestamp, url) => {
                 tvlUsd: parseFloat(tvl),
                 apyBase: baseAPR,
                 apyReward: rewardsAPR,
+                rewardTokens: rewardTokens, // Include rewardTokens in the return object
                 underlyingTokens: [p.token0.id, p.token1.id],
                 url: `https://app.stellaswap.com/pulsar/add/${p.token0.id}/${p.token1.id}`,
             };
@@ -179,7 +118,7 @@ const topLvl = async (chainString, timestamp, url) => {
     // console.log('xxx', data)
 
     // Filter out pools with invalid or missing fields
-    data = data.filter(p => p.pool && p.chain && p.project && p.symbol && p.underlyingTokens.length && p.url);
+    // data = data.filter(p => p.pool && p.chain && p.project && p.symbol && p.underlyingTokens.length && p.url);
 
     return data;
 };
