@@ -14,9 +14,6 @@ const {
     getPositionsById,
     getAmounts,
 } = require('./utils');
-
-
-// const updateEternalFarmsApr = async () => {
 //     console.log('Updating Farms APR');
 //     const eternalFarmings = await getEternalFarmingInfo();
 

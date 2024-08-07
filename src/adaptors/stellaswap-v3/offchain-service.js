@@ -192,9 +192,8 @@ const OffchainService = {
 let poolsAPRObj = {};
 
 const updatePoolsApr = async () => {
-    console.log('Updating Pools APR');
+    // console.log('Updating Pools APR');
     const poolsJson = await utils.getCurrentPoolsInfo();
-    console.log('lengthhnsficbifbiabfibfibfibfibfibf', poolsJson.length);
     const poolsTick = {};
     const poolsCurrentTvl = {};
     const poolsFees = {};
@@ -237,12 +236,11 @@ const updatePoolsApr = async () => {
     }
     poolsAPR.updatedAt = (Date.now() / 1000).toFixed(0);
     poolsAPRObj = poolsAPR;
-    console.log("poolsAPRObj", poolsAPRObj)
     return poolsAPRObj;
 };
 
 const updateFarmsRewardsApr = async () => {
-    console.log('Updating Farm APR');
+    // console.log('Updating Farm APR');
     const pools = await OffchainService.getAllPools();
     const alms = await OffchainService.getAllPositionManagers();
 
@@ -272,7 +270,7 @@ const updateFarmsRewardsApr = async () => {
                     const vault = await rewarderRegistry.getPoolPMVaultByAddress(pool.pool, alm.index);
                     if (vault.toLowerCase() !== ethers.constants.AddressZero.toLowerCase()) {
                         if (alm.almKEY === 'BEEFY') {
-                            console.log('Found BEEFY ALM');
+                            // console.log('Found BEEFY ALM');
                             const beefyPositions = await OffchainService.getBeefyPosition(pool.pool, vault);
                             positions = [...positions, ...beefyPositions];
                         }
