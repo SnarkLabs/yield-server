@@ -93,12 +93,8 @@ const topLvl = async (chainString, timestamp, url) => {
         const tvl = p.poolDayData[0]?.tvlUSD || 0;
         if (tvl > 30000) {
             const baseAPR = poolsAPR[p.id] ? poolsAPR[p.id].toNumber() : 0;
-            const rewardsAPR = poolsFarmApr.pools[p.id]?.apr.toNumber() || 0; // Set to 0 if undefined
-            const rewardTokens = poolsRewardTokens[p.id]; // Retrieve reward tokens for each pool
-
-
-            // console.log('apr', baseAPR);
-            // console.log('rewards', rewardsAPR);
+            const rewardsAPR = poolsFarmApr.pools[p.id]?.apr.toNumber() || 0;
+            const rewardTokens = poolsRewardTokens[p.id];
 
             return {
                 pool: p.id,
@@ -108,17 +104,19 @@ const topLvl = async (chainString, timestamp, url) => {
                 tvlUsd: parseFloat(tvl),
                 apyBase: baseAPR,
                 apyReward: rewardsAPR,
-                rewardTokens: rewardTokens, // Include rewardTokens in the return object
+                rewardTokens: rewardTokens,
                 underlyingTokens: [p.token0.id, p.token1.id],
                 url: `https://app.stellaswap.com/pulsar/add/${p.token0.id}/${p.token1.id}`,
             };
         }
-    });
+    }).filter(p => p);
 
     // console.log('xxx', data)
 
     // Filter out pools with invalid or missing fields
     // data = data.filter(p => p.pool && p.chain && p.project && p.symbol && p.underlyingTokens.length && p.url);
+
+    // return data;
 
     return data;
 };
