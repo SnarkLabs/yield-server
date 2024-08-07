@@ -9,6 +9,12 @@ exports.queryPools = gql
     `{
         pools(first: ${_50}, orderBy: totalValueLockedUSD, orderDirection: desc) {
         id
+        poolDayData(first: 1000, orderBy: date, orderDirection: desc) {
+            tvlUSD
+            volumeUSD
+            untrackedVolumeUSD
+            date
+        }
         volumeUSD
         token0 {
             id
@@ -67,30 +73,41 @@ exports.queryBlock = gql
 
 exports.queryPositions = gql
     `{
-        positions(first: ${_50}, where: { liquidity_gt: 0, pool: "<POOL_ID>" }) {
+        positions(first: 1000, where: { liquidity_gt: 0, pool: "<POOL_ID>" }) {
           id
-          owner
-          tickLower {
+        owner
+        tickLower{
             tickIdx
-          }
-          tickUpper {
+        }
+        tickUpper{
             tickIdx
-          }
-          liquidity
-          depositedToken0
-          depositedToken1
-          token0 {
+        }
+        liquidity
+        depositedToken0
+        depositedToken1
+        token0{
+          decimals
+        }
+        token1{
+          decimals
+        }
+        pool{
+          id
+          token0Price
+          tick
+          token0{
+            name
             decimals
+            derivedMatic
           }
-          token1 {
+          token1{
+            name
             decimals
-          }
-          pool {
-            id
-            token0Price
+            derivedMatic
           }
         }
-    }`
+      }
+    }`;
 
 exports.queryFarming = gql
     `{
@@ -145,3 +162,37 @@ exports.queryPositionsViaIds = gql
           }
         }
     }`
+
+
+// exports.queryFarmPositions = gql
+//     `{
+//     position(id: "${positionId}") {
+//         id
+//         owner
+//         collectedFeesToken0
+//         collectedFeesToken1
+//         liquidity
+//         tickLower {
+//           tickIdx
+//         }
+//         tickUpper {
+//           tickIdx
+//         }
+//         pool {
+//           id
+//           token0Price
+//           token1Price
+//           token0 {
+//             name
+//             decimals
+//             derivedMatic
+//           }
+//           token1 {
+//             name
+//             decimals
+//             derivedMatic
+//           }
+//           tick
+//         }
+//       }
+//     }`
