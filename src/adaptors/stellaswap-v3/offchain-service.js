@@ -1,8 +1,8 @@
 const gql = require('graphql-request');
 const BigNumber = require('bignumber.js');
 const ethers = require('ethers');
-const { Multicall } = require('ethereum-multicall');
 const { request } = require('graphql-request');
+const sdk = require('@defillama/sdk'); // Make sure to install this package
 
 const RewarderRegistryABI = require('./abis/OffchainRewarderRegistry.json');
 const RewarderABI = require('./abis/OffchainRewarder.json');
@@ -14,16 +14,7 @@ const { pulsar, pulsarFarming, pulsarBlocks } = require('./clients');
 const utils = require('./utils');
 
 const REWARD_REGISTRY = '0x0e4cAEf48De8FEc07b7dfeae8D73848Aaa8be0cB';
-const MULTI_CALL_ADDR = '0xcA11bde05977b3631167028862bE2a173976CA11';
 const RPC_URL = 'https://api-moonbeam.dwellir.com/5e6927bb-9acb-466f-a45e-4df46b29b82b';
-
-const multicall = new Multicall({
-    ethersProvider: new ethers.providers.JsonRpcProvider(RPC_URL),
-    tryAggregate: true,
-    multicallCustomContractAddress: MULTI_CALL_ADDR,
-});
-
-let farmingAPRObjGlobal = {};
 
 const OffchainService = {
     getEtherProvider() {
@@ -47,30 +38,28 @@ const OffchainService = {
         return false;
     },
 
-
     async getPoolsViaMulticall(length) {
-        const callsArr = [];
+        const balanceCalls = [];
         for (let index = 0; index < length; index += 1) {
-            callsArr.push({
-                reference: index.toString(),
-                methodName: 'pools',
-                methodParameters: [index],
+            balanceCalls.push({
+                target: REWARD_REGISTRY,
+                params: [index]
             });
         }
-        const contextMapping = [
-            {
-                reference: 'ref',
-                contractAddress: REWARD_REGISTRY,
-                abi: RewarderRegistryABI,
-                calls: callsArr,
-            },
-        ];
-        const results = await multicall.call(contextMapping);
-        const mappedResults = results.results.ref.callsReturnContext.map((result) => ({
-            pool: result.returnValues[0],
-            rewarder: result.returnValues[1],
-            isPaused: result.returnValues[2],
+
+        const results = await sdk.api.abi.multiCall({
+            abi: RewarderRegistryABI.find(abi => abi.name === 'pools'),
+            calls: balanceCalls,
+            chain: 'moonbeam',
+            permitFailure: true,
+        });
+
+        const mappedResults = results.output.map(result => ({
+            pool: result.output[0],
+            rewarder: result.output[1],
+            isPaused: result.output[2],
         }));
+
         return mappedResults;
     },
 
@@ -87,27 +76,26 @@ const OffchainService = {
     },
 
     async getPositionManagersViaMulticall(length) {
-        const callsArr = [];
+        const balanceCalls = [];
         for (let index = 0; index < length; index += 1) {
-            callsArr.push({
-                reference: index.toString(),
-                methodName: 'positionManagers',
-                methodParameters: [index],
+            balanceCalls.push({
+                target: REWARD_REGISTRY,
+                params: [index]
             });
         }
-        const contextMapping = [
-            {
-                reference: 'ref',
-                contractAddress: REWARD_REGISTRY,
-                abi: RewarderRegistryABI,
-                calls: callsArr,
-            },
-        ];
-        const results = await multicall.call(contextMapping);
-        const mappedResults = results.results.ref.callsReturnContext.map((result) => ({
-            index: result.reference,
-            almKEY: result.returnValues[0],
+
+        const results = await sdk.api.abi.multiCall({
+            abi: RewarderRegistryABI.find(abi => abi.name === 'positionManagers'),
+            calls: balanceCalls,
+            chain: 'moonbeam',
+            permitFailure: true,
+        });
+
+        const mappedResults = results.output.map(result => ({
+            index: result.input.params[0],
+            almKEY: result.output[0],
         }));
+
         return mappedResults;
     },
 
@@ -180,7 +168,6 @@ const OffchainService = {
             });
         }
 
-
         if (totalLiq.gt(0)) {
             return minimalPositions;
         }
@@ -192,7 +179,6 @@ const OffchainService = {
 let poolsAPRObj = {};
 
 const updatePoolsApr = async () => {
-    // console.log('Updating Pools APR');
     const poolsJson = await utils.getCurrentPoolsInfo();
     const poolsTick = {};
     const poolsCurrentTvl = {};
@@ -240,7 +226,6 @@ const updatePoolsApr = async () => {
 };
 
 const updateFarmsRewardsApr = async () => {
-    // console.log('Updating Farm APR');
     const pools = await OffchainService.getAllPools();
     const alms = await OffchainService.getAllPositionManagers();
 
@@ -257,7 +242,6 @@ const updateFarmsRewardsApr = async () => {
             }
             const rewarder = new ethers.Contract(pool.rewarder, RewarderABI, OffchainService.getEtherProvider());
             const activeRewards = await rewarder.getActiveRewards();
-            // console.log('activeRewards', activeRewards);
             if (activeRewards.length <= 0) {
                 continue;
             }
@@ -270,17 +254,14 @@ const updateFarmsRewardsApr = async () => {
                     const vault = await rewarderRegistry.getPoolPMVaultByAddress(pool.pool, alm.index);
                     if (vault.toLowerCase() !== ethers.constants.AddressZero.toLowerCase()) {
                         if (alm.almKEY === 'BEEFY') {
-                            // console.log('Found BEEFY ALM');
                             const beefyPositions = await OffchainService.getBeefyPosition(pool.pool, vault);
                             positions = [...positions, ...beefyPositions];
                         }
                     }
                 }
             }
-            // console.log('positions', positions.length)
             let totalNativeAmount = 0.0;
             for (const position of positions) {
-
                 const { amount0, amount1 } = utils.getAmounts(
                     (+position.liquidity),
                     (+position.tickLower.tickIdx),
@@ -292,7 +273,6 @@ const updateFarmsRewardsApr = async () => {
 
                 totalNativeAmount += (amount1 * (+position.pool.token1.derivedMatic)) / 10 ** (+position.pool.token1.decimals);
             }
-            // console.log('totalNativeAmount', totalNativeAmount);
 
             let totalNativeReward = new BigNumber('0');
 
@@ -316,7 +296,6 @@ const updateFarmsRewardsApr = async () => {
             if (totalNativeAmount > 0) {
                 apr = totalNativeReward.dividedBy(new BigNumber(totalNativeAmount)).times(86400 * 365 * 100);
             }
-            // console.log('apr', apr.toNumber())
 
             farmingObj.pools[pool.pool.toLowerCase()] = {
                 apr,
