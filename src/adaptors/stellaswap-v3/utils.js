@@ -1,5 +1,5 @@
 const BigNumber = require('bignumber.js');
-const { request } = require('graphql-request');
+const { gql, request } = require('graphql-request');
 const { pulsar, pulsarFarming, pulsarBlocks } = require('./clients')
 
 const {
@@ -12,7 +12,9 @@ const {
 } = require('./queries')
 
 const tickToSqrtPrice = (tick) => {
-    return new BigNumber(Math.sqrt(1.0001 ** tick));
+    // return new BigNumber(Math.sqrt(1.0001 ** tick));
+    return Math.sqrt(1.0001 ** tick);
+
 };
 
 exports.getPreviousBlockNumber = async () => {
@@ -40,16 +42,19 @@ exports.getAmounts = (liquidity, tickLower, tickUpper, currentTick) => {
     const currentPrice = tickToSqrtPrice(currentTick);
     const lowerPrice = tickToSqrtPrice(tickLower);
     const upperPrice = tickToSqrtPrice(tickUpper);
-    let amount1, amount0;
-    if (currentPrice.isLessThan(lowerPrice)) {
-        amount1 = new BigNumber(0);
-        amount0 = liquidity.times(new BigNumber(1).div(lowerPrice).minus(new BigNumber(1).div(upperPrice)));
-    } else if (currentPrice.isGreaterThanOrEqualTo(lowerPrice) && currentPrice.isLessThanOrEqualTo(upperPrice)) {
-        amount1 = liquidity.times(currentPrice.minus(lowerPrice));
-        amount0 = liquidity.times(new BigNumber(1).div(currentPrice).minus(new BigNumber(1).div(upperPrice)));
+
+    // liquidity = new BigNumber(liquidity);
+
+    let amount1; let amount0;
+    if (currentPrice < lowerPrice) {
+      amount1 = 0;
+      amount0 = liquidity * (1 / lowerPrice - 1 / upperPrice);
+    } else if ((lowerPrice <= currentPrice) && (currentPrice <= upperPrice)) {
+      amount1 = liquidity * (currentPrice - lowerPrice);
+      amount0 = liquidity * (1 / currentPrice - 1 / upperPrice);
     } else {
-        amount1 = liquidity.times(upperPrice.minus(lowerPrice));
-        amount0 = new BigNumber(0);
+      amount1 = liquidity * (upperPrice - lowerPrice);
+      amount0 = 0;
     }
     return { amount0, amount1 };
 };
@@ -91,4 +96,69 @@ exports.getPositionsById = async (tokenIds) => {
         i += 1;
     }
     return result;
+};
+
+exports.getCurrentPoolsInfo = async () => {
+    const prevBlockNumber = await exports.getPreviousBlockNumber();
+    const queryString = `
+    {
+      pools(block: {number: ${prevBlockNumber}}, first: 1000, orderBy: id) {
+        feesToken0
+        feesToken1
+        id
+        token0 {
+          name
+        }
+        token1 {
+          name
+        }
+        token0Price
+        tick
+        liquidity
+      }
+    }
+    `;
+    const previousPools = await request(pulsar, gql`${queryString}`);
+    const poolsJsonPrevious = {};
+    for (const pool of previousPools.pools) {
+      poolsJsonPrevious[pool.id] = { feesToken0: pool.feesToken0, feesToken1: pool.feesToken1 };
+    }
+
+    const queryStringNew = `{
+      pools(first: 1000, orderBy: id) {
+        feesToken0
+        feesToken1
+        id
+        token0 {
+          name
+          symbol
+          decimals
+        }
+        token1 {
+          name
+          symbol
+          decimals
+        }
+        token0Price
+        tick
+        liquidity
+      }
+    }`;
+    const pools = await request(pulsar, gql`${queryStringNew}`);
+
+    const poolsJson = [];
+    for (const pool of pools.pools) {
+      poolsJson.push({ ...pool });
+    }
+
+    for (let i = 0; i < poolsJson.length; i += 1) {
+      try {
+        poolsJson[i].feesToken0 = (+poolsJson[i].feesToken0) - (+poolsJsonPrevious[poolsJson[i].id].feesToken0);
+        poolsJson[i].feesToken1 = (+poolsJson[i].feesToken1) - (+poolsJsonPrevious[poolsJson[i].id].feesToken1);
+      } catch (error) {
+        poolsJson[i].feesToken0 = (+poolsJson[i].feesToken0);
+        poolsJson[i].feesToken1 = (+poolsJson[i].feesToken1);
+      }
+    }
+    return poolsJson;
 };
